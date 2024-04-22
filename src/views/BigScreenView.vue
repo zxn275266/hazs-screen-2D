@@ -1,144 +1,56 @@
 <script setup>
-import { getParkInfoAPI } from '@/api/park'
-import {ref,onMounted} from 'vue'
+// import { getParkInfoAPI } from '@/api/park'
+import { onMounted, ref } from 'vue'
+//导入模型解析器的核心构造函数
+import { Application } from '@splinetool/runtime'
 //1.导入echarts包
-import * as echarts from 'echarts';
-
+import { useGetParkInfo, useInitBarChart, useInitPieChart } from './composables/bigscreen'
+import LoadingComponent from '@/components/LoadingComponent.vue';
+import VScaleScreen from 'v-scale-screen';
 //2.获取要渲染的dom元素(准备好了宽高，并且已经渲染的到了页面中)
 //3.把dom元素传入到echart.init() 获取echarts实例
 //4.准备渲染echarts的配置项
 //5.把配置传给echarts实例
-  
 
 
+// //声明响应式数据
+// const parkInfo=ref({})
+// //分装方法调用接口
+// const getParkInfo=async()=>{
+//   const res=await getParkInfoAPI()
+//   // console.log(res)
+//   parkInfo.value=res.data
+// }
 
-
-
-//声明响应式数据
-const parkInfo=ref({})
-//分装方法调用接口
-const getParkInfo=async()=>{
-  const res=await getParkInfoAPI()
-  // console.log(res)
-  parkInfo.value=res.data
-}
-
+const { parkInfo, getParkInfo } = useGetParkInfo()
 
 //渲染柱状图
-
-const barChart=ref(null)
-
-const initBarChart=()=>{
-  const parkIncome=parkInfo.value.parkIncome
-  const myChart=echarts.init(barChart.value)
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow',
-      },
-    },
-    grid: {
-      // 让图表占满容器
-      top: '10px',
-      left: '0px',
-      right: '0px',
-      bottom: '0px',
-      containLabel: true,
-    },
-    xAxis: [
-      {
-        type: 'category',
-        axisTick: {
-          alignWithLabel: true,
-          show: false,
-        },
-        data: parkIncome.xMonth,
-      },
-    ],
-    yAxis: [
-      {
-        type: 'value',
-        splitLine: {
-          show: false,
-        },
-      },
-    ],
-    series: [
-      {
-        name: '园区年度收入',
-        type: 'bar',
-        barWidth: '10px',
-        data: parkIncome.yIncome.map((item, index) => {
-          const color =
-            index % 2 === 0
-              ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0.23, color: '#74c0f8' },
-                { offset: 1, color: 'rgba(116,192,248,0.00)' },
-              ])
-              : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0.23, color: '#ff7152' },
-                { offset: 1, color: 'rgba(255,113,82,0.00)' },
-              ])
-          return { value: item, itemStyle: { color } }
-        }),
-      },
-    ],
-    textStyle: {
-      color: '#B4C0CC',
-    },
-  }
-myChart.setOption(option)
-}
+const { barChart, initBarChart } = useInitBarChart(parkInfo)
 
 //渲染饼状图
-const pieChart=ref(null)
-const initPieChart=()=>{
-  const myChart=echarts.init(pieChart.value)
-  const parkIndustry=parkInfo.value.parkIndustry
-  const pieOption = {
-    color: [
-      '#00B2FF', '#2CF2FF', '#892CFF', '#FF624D', '#FFCF54', '#86ECA2'],
-    legend: {
-      itemGap: 20,
-      bottom: '0',
-      icon: 'rect',
-      itemHeight: 10, // 图例icon高度
-      itemWidth: 10, // 图例icon宽度
-      textStyle: {
-        color: '#c6d1db',
-      },
-    },
-    tooltip: {
-      trigger: 'item'
-    },
-    series: [
-      {
-        name: '园区产业分析',
-        type: 'pie',
-        radius: ['55%', '60%'], // 设置内圈与外圈的半径使其呈现为环形
-        center: ['50%', '40%'], // 圆心位置， 用于调整整个图的位置
-        tooltip: {
-          trigger: 'item',
-          formatter: (params) => {
-            return `${params.seriesName}</br><div style='display:flex;justify-content: space-between;'><div>${params.marker}${params.name}</div><div>${params.percent}%</div></div>`
-          }
-        },
-        label: {
-          show: false,
-          position: 'center',
-        },
-        data: parkIndustry,
-      },
-    ],
 
-  }
-  myChart.setOption(pieOption)
+const { pieChart, initPieChart } = useInitPieChart(parkInfo)
+
+const ref3d = ref(null)
+const isLoading=ref(false)
+
+const init3D = () => {
+  //创建解析器的构造函数并且传入要渲染的dom结构
+  const spline = new Application(ref3d.value)
+  isLoading.value=true
+  //调用后端接口spline.load
+  spline.load('https://fe-hmzs.itheima.net/scene.splinecode').then(() => {
+    //执行then说明，模型已经渲染完毕了
+    console.log("模型渲染完毕了")
+    isLoading.value=false
+  })
 }
-onMounted(async()=>{
+
+onMounted(async () => {
   await getParkInfo()
   initBarChart()
   initPieChart()
+  init3D()
 })
 </script>
 
@@ -148,9 +60,10 @@ onMounted(async()=>{
 
 
 <template>
-  <div class="all-charts">
+  <VScaleScreen width="1920" height="1080">
+      <div class="all-charts">
     <!-- 园区概况 -->
-    <div class="section-one" >
+    <div class="section-one">
       <!-- v-if="Object.keys(parkInfo).length>0" -->
       <img class="img-header"
         src="https://yjy-teach-oss.oss-cn-beijing.aliyuncs.com/smartPark/%E5%A4%A7%E5%B1%8F%E5%88%87%E5%9B%BE/%E5%9B%AD%E5%8C%BA%E6%A6%82%E5%86%B5%402x.png"
@@ -179,7 +92,7 @@ onMounted(async()=>{
         <div class="item">
           <div class="icons-item car-icon">
             <span class="number">
-              {{ parkInfo.base?.parkingTotal}}
+              {{ parkInfo.base?.parkingTotal }}
             </span>
           </div>
           <span class="title">车位总数</span>
@@ -188,7 +101,7 @@ onMounted(async()=>{
         <div class="item">
           <div class="icons-item rod-icon">
             <span class="number">
-              {{ parkInfo.base?.chargePoleTotal}}
+              {{ parkInfo.base?.chargePoleTotal }}
             </span>
           </div>
           <span class="title">一体杆总数</span>
@@ -196,51 +109,61 @@ onMounted(async()=>{
         </div>
       </div>
     </div>
-    
+
     <!-- 园区年度收入分析 -->
-  <div class="section-two">
-    <img class="img-header"
-      src="https://yjy-teach-oss.oss-cn-beijing.aliyuncs.com/smartPark/%E5%A4%A7%E5%B1%8F%E5%88%87%E5%9B%BE/%E5%9B%AD%E5%8C%BA%E5%B9%B4%E5%BA%A6%E6%94%B6%E5%85%A5%E5%88%86%E6%9E%90%402x.png"
-      alt="" />
-    <div class="bar-chart-titile">
-      <span>单位：元</span>
-      <div>
-        <span class="bar-icon blue-bar-icon"></span>
-        <span class="bar-icon red-bar-icon"></span>
-        收入情况
+    <div class="section-two">
+      <img class="img-header"
+        src="https://yjy-teach-oss.oss-cn-beijing.aliyuncs.com/smartPark/%E5%A4%A7%E5%B1%8F%E5%88%87%E5%9B%BE/%E5%9B%AD%E5%8C%BA%E5%B9%B4%E5%BA%A6%E6%94%B6%E5%85%A5%E5%88%86%E6%9E%90%402x.png"
+        alt="" />
+      <div class="bar-chart-titile">
+        <span>单位：元</span>
+        <div>
+          <span class="bar-icon blue-bar-icon"></span>
+          <span class="bar-icon red-bar-icon"></span>
+          收入情况
+        </div>
       </div>
+      <div class="bar-chart" ref="barChart"></div>
     </div>
-    <div class="bar-chart" ref="barChart"></div>
+    <!-- 园区产业分布 -->
+    <div class="section-three">
+      <img class="img-header"
+        src="https://yjy-teach-oss.oss-cn-beijing.aliyuncs.com/smartPark/%E5%A4%A7%E5%B1%8F%E5%88%87%E5%9B%BE/%E5%9B%AD%E5%8C%BA%E4%BA%A7%E4%B8%9A%E5%88%86%E5%B8%83%402x.png"
+        alt="" />
+      <div class="pie-chart" ref="pieChart"></div>
+    </div>
   </div>
-  <!-- 园区产业分布 -->
-<div class="section-three">
-  <img class="img-header"
-    src="https://yjy-teach-oss.oss-cn-beijing.aliyuncs.com/smartPark/%E5%A4%A7%E5%B1%8F%E5%88%87%E5%9B%BE/%E5%9B%AD%E5%8C%BA%E4%BA%A7%E4%B8%9A%E5%88%86%E5%B8%83%402x.png"
-    alt="" />
-  <div class="pie-chart" ref="pieChart"></div>
-</div>
+  <div class="model-container">
+    <LoadingComponent :loading="isLoading"></LoadingComponent>
+    <!-- 准备3D渲染节点 -->
+    <canvas class="canvas-3d" ref="ref3d" />
   </div>
+  </VScaleScreen>
+
 </template>
 
 <style>
 .section-two {
-    flex-basis: 35%;
-    .bar-chart {
-      width: 100%;
-      height: calc(100% - 90px);
-    }
-  }
-  .section-three {
-    flex-basis: 40%;
+  flex-basis: 35%;
 
-    .pie-chart {
-      position: relative;
-      margin: 0 auto;
-      padding-bottom: 20px;
-      width: 80%;
-      height: calc(100% - 40px);
-    }
+  .bar-chart {
+    width: 100%;
+    height: calc(100% - 90px);
   }
+}
+
+.section-three {
+  flex-basis: 40%;
+
+  .pie-chart {
+    position: relative;
+    margin: 0 auto;
+    padding-bottom: 20px;
+    width: 80%;
+    height: calc(100% - 40px);
+  }
+}
+
 .all-charts {
   position: absolute;
   top: 0;
@@ -313,5 +236,12 @@ onMounted(async()=>{
       }
     }
   }
+}
+
+.model-container {
+  height: 100%;
+  background-color: black;
+  width: 100%;
+  flex-shrink: 0;
 }
 </style>
